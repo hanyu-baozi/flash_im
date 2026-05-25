@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flash_im/src/playground/features/auth/services/auth_service.dart';
+import 'package:flash_im/src/playground/features/auth/models/login_type.dart';
 import 'package:flash_im/src/playground/features/auth/config/auth_config.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -54,8 +55,11 @@ void main() {
               statusCode: 200,
               data: {
                 'success': true,
+                'login_type': 'sms',
                 'token': 'mock_jwt_token_for_$phone',
                 'user_id': 42,
+                'nickname': phone,
+                'avatar': 'https://api.dicebear.com/7.x/identicon/png?seed=$phone',
               },
             ));
           } else {
@@ -64,7 +68,42 @@ void main() {
               response: Response(
                 requestOptions: options,
                 statusCode: 401,
-                data: {'success': false, 'message': '验证码错误或已过期'},
+                data: {'success': false, 'login_type': 'sms', 'message': '验证码错误或已过期'},
+              ),
+            ));
+          }
+        } else if (options.path == '/auth/login/password' && options.method == 'POST') {
+          final phone = options.data['phone'] as String;
+          final password = options.data['password'] as String;
+          if (phone == '13800000001' && password == '123456') {
+            handler.resolve(Response(
+              requestOptions: options,
+              statusCode: 200,
+              data: {
+                'success': true,
+                'login_type': 'password',
+                'token': 'mock_jwt_token_for_$phone',
+                'user_id': 1,
+                'nickname': 'Alice',
+                'avatar': 'https://api.dicebear.com/7.x/identicon/png?seed=alice',
+              },
+            ));
+          } else if (phone == '13800000001') {
+            handler.reject(DioException(
+              requestOptions: options,
+              response: Response(
+                requestOptions: options,
+                statusCode: 401,
+                data: {'success': false, 'login_type': 'password', 'message': '密码错误'},
+              ),
+            ));
+          } else {
+            handler.reject(DioException(
+              requestOptions: options,
+              response: Response(
+                requestOptions: options,
+                statusCode: 401,
+                data: {'success': false, 'login_type': 'password', 'message': '用户不存在'},
               ),
             ));
           }
@@ -129,8 +168,10 @@ void main() {
       final response = await service.login('13800000001', '123456');
 
       expect(response.success, true);
+      expect(response.loginType, LoginType.sms);
       expect(response.token, 'mock_jwt_token_for_13800000001');
       expect(response.userId, 42);
+      expect(response.nickname, '13800000001');
       expect(response.message, isNull);
     });
 
@@ -170,6 +211,68 @@ void main() {
     });
   });
 
+  group('POST /auth/login/password Tests', () {
+    test('should login successfully with correct password', () async {
+      final response = await service.loginWithPassword('13800000001', '123456');
+
+      expect(response.success, true);
+      expect(response.loginType, LoginType.password);
+      expect(response.token, 'mock_jwt_token_for_13800000001');
+      expect(response.userId, 1);
+      expect(response.nickname, 'Alice');
+      expect(response.avatar, 'https://api.dicebear.com/7.x/identicon/png?seed=alice');
+      expect(response.message, isNull);
+    });
+
+    test('should fail with wrong password', () async {
+      try {
+        await service.loginWithPassword('13800000001', 'wrong');
+        fail('Expected an exception');
+      } catch (e) {
+        expect(e.toString(), anyOf(
+          contains('密码错误'),
+          contains('密码登录失败'),
+          contains('请求失败'),
+        ));
+      }
+    });
+
+    test('should fail with non-existent user', () async {
+      try {
+        await service.loginWithPassword('13900000000', '123456');
+        fail('Expected an exception');
+      } catch (e) {
+        expect(e.toString(), anyOf(
+          contains('用户不存在'),
+          contains('密码登录失败'),
+          contains('请求失败'),
+        ));
+      }
+    });
+
+    test('should fail with empty password', () async {
+      try {
+        await service.loginWithPassword('13800000001', '');
+        fail('Expected an exception');
+      } catch (e) {
+        expect(e.toString(), anyOf(
+          contains('密码登录失败'),
+          contains('请求失败'),
+        ));
+      }
+    });
+
+    test('should save token after successful password login', () async {
+      await service.loginWithPassword('13800000001', '123456');
+
+      final token = await service.getToken();
+      final userId = await service.getUserId();
+
+      expect(token, 'mock_jwt_token_for_13800000001');
+      expect(userId, 1);
+    });
+  });
+
   group('GET /user/profile Tests', () {
     test('should return user profile with valid token', () async {
       await service.login('13800000001', '123456');
@@ -179,6 +282,16 @@ void main() {
       expect(profile.userId, 42);
       expect(profile.nickname, 'mock_user');
       expect(profile.avatar, 'https://example.com/avatar.png');
+      expect(profile.phone, '13800000001');
+    });
+
+    test('should return user profile after password login', () async {
+      await service.loginWithPassword('13800000001', '123456');
+
+      final profile = await service.getProfile();
+
+      expect(profile.userId, 42);
+      expect(profile.nickname, 'mock_user');
       expect(profile.phone, '13800000001');
     });
 
@@ -204,8 +317,16 @@ void main() {
       expect(loggedIn, false);
     });
 
-    test('isLoggedIn should return true after login', () async {
+    test('isLoggedIn should return true after SMS login', () async {
       await service.login('13800000001', '123456');
+
+      final loggedIn = await service.isLoggedIn();
+
+      expect(loggedIn, true);
+    });
+
+    test('isLoggedIn should return true after password login', () async {
+      await service.loginWithPassword('13800000001', '123456');
 
       final loggedIn = await service.isLoggedIn();
 
@@ -224,6 +345,17 @@ void main() {
       expect(await service.getUserId(), isNull);
       expect(await service.isLoggedIn(), false);
     });
+
+    test('clearToken should clear password login token', () async {
+      await service.loginWithPassword('13800000001', '123456');
+
+      expect(await service.getToken(), isNotNull);
+
+      await service.clearToken();
+
+      expect(await service.getToken(), isNull);
+      expect(await service.isLoggedIn(), false);
+    });
   });
 
   group('Network Error Handling Tests', () {
@@ -238,6 +370,27 @@ void main() {
 
       try {
         await badService.sendSmsCode('13800000001');
+        fail('Expected an exception');
+      } catch (e) {
+        expect(e.toString(), anyOf(
+          contains('网络连接失败'),
+          contains('连接超时'),
+          contains('请求失败'),
+        ));
+      }
+    });
+
+    test('should handle network error for password login', () async {
+      AuthConfig.updateBaseUrl('http://127.0.0.1:9999');
+      final badDio = Dio(BaseOptions(
+        baseUrl: AuthConfig.baseUrl,
+        connectTimeout: const Duration(milliseconds: 100),
+        receiveTimeout: const Duration(milliseconds: 100),
+      ));
+      final badService = AuthService(dio: badDio);
+
+      try {
+        await badService.loginWithPassword('13800000001', '123456');
         fail('Expected an exception');
       } catch (e) {
         expect(e.toString(), anyOf(

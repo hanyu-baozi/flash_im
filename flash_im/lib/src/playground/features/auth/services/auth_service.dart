@@ -63,6 +63,31 @@ class AuthService {
     }
   }
 
+  Future<LoginResponse> loginWithPassword(String phone, String password) async {
+    try {
+      final response = await _dio.post(
+        AuthConfig.passwordLoginPath,
+        data: {'phone': phone, 'password': password},
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data as Map<String, dynamic>;
+        final loginResp = LoginResponse.fromJson(data);
+
+        if (loginResp.success && loginResp.token != null) {
+          await _saveToken(loginResp.token!, loginResp.userId);
+        }
+
+        return loginResp;
+      }
+      throw Exception('密码登录失败: ${response.statusCode}');
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    } catch (e) {
+      throw Exception('密码登录失败: $e');
+    }
+  }
+
   Future<UserProfile> getProfile() async {
     final token = await getToken();
     if (token == null) {

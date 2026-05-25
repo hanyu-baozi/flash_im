@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
+import '../models/login_response.dart';
 import '../services/auth_service.dart';
 import '../config/auth_config.dart';
 
@@ -9,6 +10,7 @@ class AuthViewModel extends ChangeNotifier {
 
   String _phone = '';
   String _code = '';
+  String _password = '';
   bool _isLoading = false;
   String? _errorMessage;
   int _countdown = 0;
@@ -24,6 +26,7 @@ class AuthViewModel extends ChangeNotifier {
 
   String get phone => _phone;
   String get code => _code;
+  String get password => _password;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   int get countdown => _countdown;
@@ -33,6 +36,7 @@ class AuthViewModel extends ChangeNotifier {
   UserProfile? get profile => _profile;
   bool get isLoggedIn => _isLoggedIn;
   bool get canLogin => _phone.length == 11 && _code.length == 6 && !_isLoading;
+  bool get canLoginWithPassword => _phone.length == 11 && _password.isNotEmpty && !_isLoading;
 
   void setPhone(String value) {
     _phone = value;
@@ -42,6 +46,12 @@ class AuthViewModel extends ChangeNotifier {
 
   void setCode(String value) {
     _code = value;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  void setPassword(String value) {
+    _password = value;
     _errorMessage = null;
     notifyListeners();
   }
@@ -91,6 +101,31 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> loginWithPassword() async {
+    if (!canLoginWithPassword) return;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _service.loginWithPassword(_phone, _password);
+      if (response.success) {
+        _isLoggedIn = true;
+        try {
+          await loadProfile();
+        } catch (_) {}
+      } else {
+        _errorMessage = response.message ?? '密码登录失败';
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadProfile() async {
     _isLoading = true;
     _errorMessage = null;
@@ -114,6 +149,7 @@ class AuthViewModel extends ChangeNotifier {
     _isLoggedIn = false;
     _phone = '';
     _code = '';
+    _password = '';
     _codeSent = false;
     _displayCode = null;
     _countdown = 0;

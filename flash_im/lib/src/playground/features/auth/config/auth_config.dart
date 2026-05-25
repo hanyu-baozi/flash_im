@@ -5,6 +5,7 @@ class AuthConfig {
 
   static const String smsPath = '/auth/sms';
   static const String loginPath = '/auth/login';
+  static const String passwordLoginPath = '/auth/login/password';
   static const String profilePath = '/user/profile';
 
   static const int countdownSeconds = 60;
@@ -12,6 +13,7 @@ class AuthConfig {
 
   static String get smsUrl => '$baseUrl$smsPath';
   static String get loginUrl => '$baseUrl$loginPath';
+  static String get passwordLoginUrl => '$baseUrl$passwordLoginPath';
   static String get profileUrl => '$baseUrl$profilePath';
 
   static void updateBaseUrl(String newBaseUrl) {

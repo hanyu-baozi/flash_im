@@ -47,6 +47,9 @@ class ChatRoomViewModel extends ChangeNotifier {
 
   void _onStateChanged(ChatRoomState newState) {
     _state = newState;
+    if (newState.status == ChatConnectionStatus.disconnected) {
+      _handleTokenExpired();
+    }
     notifyListeners();
   }
 

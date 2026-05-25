@@ -4,16 +4,19 @@ import 'package:flash_im/src/playground/features/auth/services/auth_service.dart
 import 'package:flash_im/src/playground/features/auth/config/auth_config.dart';
 import 'package:flash_im/src/playground/features/auth/models/user_profile.dart';
 import 'package:flash_im/src/playground/features/auth/models/login_response.dart';
+import 'package:flash_im/src/playground/features/auth/models/login_type.dart';
 
 class MockAuthService implements AuthService {
   MockAuthService({
     this.mockSmsCode = '123456',
+    this.mockPassword = '123456',
     this.mockLoginSuccess = true,
     this.mockProfileSuccess = true,
     this.shouldThrow = false,
   });
 
   final String mockSmsCode;
+  final String mockPassword;
   final bool mockLoginSuccess;
   final bool mockProfileSuccess;
   final bool shouldThrow;
@@ -32,11 +35,36 @@ class MockAuthService implements AuthService {
   Future<LoginResponse> login(String phone, String code) async {
     if (shouldThrow) throw Exception('网络错误');
     if (code != mockSmsCode) {
-      return LoginResponse(success: false, message: '验证码错误');
+      return LoginResponse(success: false, loginType: LoginType.sms, message: '验证码错误');
     }
     _savedToken = 'mock_token_for_$phone';
     _savedUserId = 100;
-    return LoginResponse(success: true, token: _savedToken, userId: _savedUserId);
+    return LoginResponse(
+      success: true,
+      loginType: LoginType.sms,
+      token: _savedToken,
+      userId: _savedUserId,
+      nickname: phone,
+      avatar: 'https://api.dicebear.com/7.x/identicon/png?seed=$phone',
+    );
+  }
+
+  @override
+  Future<LoginResponse> loginWithPassword(String phone, String password) async {
+    if (shouldThrow) throw Exception('网络错误');
+    if (password != mockPassword) {
+      return LoginResponse(success: false, loginType: LoginType.password, message: '密码错误');
+    }
+    _savedToken = 'mock_token_for_$phone';
+    _savedUserId = 1;
+    return LoginResponse(
+      success: true,
+      loginType: LoginType.password,
+      token: _savedToken,
+      userId: _savedUserId,
+      nickname: 'Alice',
+      avatar: 'https://api.dicebear.com/7.x/identicon/png?seed=alice',
+    );
   }
 
   @override
@@ -77,6 +105,7 @@ void main() {
 
       expect(vm.phone, '');
       expect(vm.code, '');
+      expect(vm.password, '');
       expect(vm.isLoading, false);
       expect(vm.errorMessage, isNull);
       expect(vm.countdown, 0);
@@ -86,6 +115,7 @@ void main() {
       expect(vm.profile, isNull);
       expect(vm.isLoggedIn, false);
       expect(vm.canLogin, false);
+      expect(vm.canLoginWithPassword, false);
     });
 
     test('setPhone should update phone and clear error', () {
@@ -109,6 +139,16 @@ void main() {
 
       vm.setCode('123456');
       expect(vm.code, '123456');
+    });
+
+    test('setPassword should update password and clear error', () {
+      final vm = AuthViewModel(service: MockAuthService());
+
+      vm.setPassword('12');
+      expect(vm.password, '12');
+
+      vm.setPassword('123456');
+      expect(vm.password, '123456');
     });
 
     test('canSendCode should be true only when phone is 11 digits and countdown is 0', () {
@@ -135,6 +175,22 @@ void main() {
       vm.setPhone('13800000001');
       vm.setCode('123456');
       expect(vm.canLogin, true);
+    });
+
+    test('canLoginWithPassword should be true only when phone is 11 digits, password not empty, and not loading', () {
+      final vm = AuthViewModel(service: MockAuthService());
+
+      vm.setPhone('138');
+      vm.setPassword('123456');
+      expect(vm.canLoginWithPassword, false);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('');
+      expect(vm.canLoginWithPassword, false);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('123456');
+      expect(vm.canLoginWithPassword, true);
     });
   });
 
@@ -243,6 +299,80 @@ void main() {
     });
   });
 
+  group('AuthViewModel password login Tests', () {
+    testWidgets('loginWithPassword should succeed with correct phone and password', (tester) async {
+      final mockService = MockAuthService();
+      final vm = AuthViewModel(service: mockService);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('123456');
+      await vm.loginWithPassword();
+
+      expect(vm.isLoggedIn, true);
+      expect(vm.errorMessage, isNull);
+      expect(vm.isLoading, false);
+
+      vm.dispose();
+    });
+
+    testWidgets('loginWithPassword should fail with wrong password', (tester) async {
+      final mockService = MockAuthService();
+      final vm = AuthViewModel(service: mockService);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('wrong');
+      await vm.loginWithPassword();
+
+      expect(vm.isLoggedIn, false);
+      expect(vm.errorMessage, isNotNull);
+      expect(vm.errorMessage, contains('密码错误'));
+      expect(vm.isLoading, false);
+
+      vm.dispose();
+    });
+
+    testWidgets('loginWithPassword should not send when phone is incomplete', (tester) async {
+      final mockService = MockAuthService();
+      final vm = AuthViewModel(service: mockService);
+
+      vm.setPhone('138');
+      vm.setPassword('123456');
+      await vm.loginWithPassword();
+
+      expect(vm.isLoggedIn, false);
+
+      vm.dispose();
+    });
+
+    testWidgets('loginWithPassword should not send when password is empty', (tester) async {
+      final mockService = MockAuthService();
+      final vm = AuthViewModel(service: mockService);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('');
+      await vm.loginWithPassword();
+
+      expect(vm.isLoggedIn, false);
+
+      vm.dispose();
+    });
+
+    testWidgets('loginWithPassword should handle network error', (tester) async {
+      final mockService = MockAuthService(shouldThrow: true);
+      final vm = AuthViewModel(service: mockService);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('123456');
+      await vm.loginWithPassword();
+
+      expect(vm.errorMessage, isNotNull);
+      expect(vm.isLoggedIn, false);
+      expect(vm.isLoading, false);
+
+      vm.dispose();
+    });
+  });
+
   group('AuthViewModel profile Tests', () {
     testWidgets('loadProfile should succeed when logged in', (tester) async {
       final mockService = MockAuthService();
@@ -256,6 +386,21 @@ void main() {
       expect(vm.profile!.userId, 100);
       expect(vm.profile!.nickname, 'mock_user');
       expect(vm.profile!.phone, '13800000001');
+
+      vm.dispose();
+    });
+
+    testWidgets('loadProfile should succeed after password login', (tester) async {
+      final mockService = MockAuthService();
+      final vm = AuthViewModel(service: mockService);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('123456');
+      await vm.loginWithPassword();
+
+      expect(vm.isLoggedIn, true);
+      expect(vm.profile, isNotNull);
+      expect(vm.profile!.userId, 1);
 
       vm.dispose();
     });
@@ -275,7 +420,7 @@ void main() {
   });
 
   group('AuthViewModel logout Tests', () {
-    testWidgets('logout should clear all state', (tester) async {
+    testWidgets('logout should clear all state after SMS login', (tester) async {
       final mockService = MockAuthService();
       final vm = AuthViewModel(service: mockService);
 
@@ -292,9 +437,31 @@ void main() {
       expect(vm.profile, isNull);
       expect(vm.phone, '');
       expect(vm.code, '');
+      expect(vm.password, '');
       expect(vm.codeSent, false);
       expect(vm.displayCode, isNull);
       expect(vm.countdown, 0);
+
+      vm.dispose();
+    });
+
+    testWidgets('logout should clear all state after password login', (tester) async {
+      final mockService = MockAuthService();
+      final vm = AuthViewModel(service: mockService);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('123456');
+      await vm.loginWithPassword();
+
+      expect(vm.isLoggedIn, true);
+      expect(vm.password, '123456');
+
+      await vm.logout();
+
+      expect(vm.isLoggedIn, false);
+      expect(vm.profile, isNull);
+      expect(vm.phone, '');
+      expect(vm.password, '');
 
       vm.dispose();
     });
@@ -357,6 +524,23 @@ void main() {
       vm.setPhone('13800000001');
       vm.setCode('123456');
       await vm.login();
+
+      expect(await mockService.isLoggedIn(), true);
+
+      await vm.checkLoginStatus();
+      expect(vm.isLoggedIn, true);
+      expect(vm.profile, isNotNull);
+
+      vm.dispose();
+    });
+
+    testWidgets('checkLoginStatus should detect logged in state after password login', (tester) async {
+      final mockService = MockAuthService();
+      final vm = AuthViewModel(service: mockService);
+
+      vm.setPhone('13800000001');
+      vm.setPassword('123456');
+      await vm.loginWithPassword();
 
       expect(await mockService.isLoggedIn(), true);
 
