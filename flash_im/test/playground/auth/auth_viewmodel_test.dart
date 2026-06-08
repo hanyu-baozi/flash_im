@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flash_im/src/playground/features/auth/viewmodel/auth_viewmodel.dart';
 import 'package:flash_im/src/playground/features/auth/services/auth_service.dart';
-import 'package:flash_im/src/playground/features/auth/config/auth_config.dart';
+
 import 'package:flash_im/src/playground/features/auth/models/user_profile.dart';
 import 'package:flash_im/src/playground/features/auth/models/login_response.dart';
 import 'package:flash_im/src/playground/features/auth/models/login_type.dart';

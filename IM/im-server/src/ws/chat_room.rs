@@ -4,8 +4,9 @@ use axum::extract::Extension;
 use axum::response::IntoResponse;
 use chrono::Utc;
 
-use crate::auth::jwt;
-use crate::state::{AppState, DbUser};
+use flash_auth::jwt;
+use flash_auth::DbUser;
+use crate::state::AppState;
 
 pub async fn handler(
     ws: WebSocketUpgrade,
@@ -55,7 +56,6 @@ async fn handle_connection(mut socket: WebSocket, state: Arc<AppState>) {
                         }
                     }
                     Some(Ok(Message::Pong(_))) => {
-                        // heartbeat response
                     }
                     Some(Ok(Message::Close(_))) | None => {
                         if is_authenticated {
@@ -140,7 +140,7 @@ async fn handle_auth_message(
         "SELECT id, phone, password_hash, nickname, avatar_url, created_at, updated_at FROM auth_users WHERE phone = $1"
     )
     .bind(&claims.phone)
-    .fetch_optional(&state.pool)
+    .fetch_optional(&state.auth.pool)
     .await;
 
     let db_user = match db_user {

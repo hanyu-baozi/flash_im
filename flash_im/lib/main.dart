@@ -1,92 +1,117 @@
 import 'package:flutter/material.dart';
+import 'package:flash_auth/flash_auth.dart';
+
+import 'src/app/home/views/main_page.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  AuthApiService.onUnauthorized = () {
+    AuthRepository().clearToken();
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => LoginPage(
+          onLoginSuccess: () {
+            navigatorKey.currentState?.pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const MainPage()),
+              (route) => false,
+            );
+          },
+        ),
+      ),
+      (route) => false,
+    );
+  };
+  runApp(FlashImApp(navigatorKey: navigatorKey));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class FlashImApp extends StatelessWidget {
+  final GlobalKey<NavigatorState> navigatorKey;
 
-  // This widget is the root of your application.
+  const FlashImApp({super.key, required this.navigatorKey});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      navigatorKey: navigatorKey,
+      title: 'Flash IM',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF4F46E5)),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      themeMode: ThemeMode.light,
+      home: const SplashGate(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class SplashGate extends StatefulWidget {
+  const SplashGate({super.key});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<SplashGate> createState() => _SplashGateState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _SplashGateState extends State<SplashGate> {
+  final _repo = AuthRepository();
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (!mounted) return;
+
+    final isLoggedIn = await _repo.isLoggedIn();
+    if (!mounted) return;
+
+    if (isLoggedIn) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainPage()),
+      );
+    } else {
+      final navigator = Navigator.of(context);
+      navigator.pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => LoginPage(
+            onLoginSuccess: () {
+              navigator.pushReplacement(
+                MaterialPageRoute(builder: (_) => const MainPage()),
+              );
+            },
+          ),
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
-      ),
+    return const Scaffold(
+      backgroundColor: Color(0xFF4F46E5),
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.shield_outlined, color: Colors.white, size: 64),
+            SizedBox(height: 16),
             Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+              'Flash IM',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: -0.5,
+              ),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
       ),
     );
   }

@@ -1,6 +1,5 @@
 
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'firework_models.dart';
 
 class FireworksPainter extends CustomPainter {
@@ -14,7 +13,7 @@ class FireworksPainter extends CustomPainter {
 
     for (final firework in fireworks) {
       for (final particle in firework.particles) {
-        paint.color = particle.color.withOpacity(particle.life);
+        paint.color = particle.color.withValues(alpha: particle.life);
         canvas.drawCircle(particle.position, particle.size, paint);
       }
     }

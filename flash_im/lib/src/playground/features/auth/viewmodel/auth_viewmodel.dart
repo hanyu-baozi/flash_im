@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
-import '../models/login_response.dart';
+
 import '../services/auth_service.dart';
 import '../config/auth_config.dart';
 

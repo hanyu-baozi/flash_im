@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../viewmodel/heartbeat_viewmodel.dart';
 import '../models/connection_state.dart';
-import '../viewmodel/heartbeat_viewmodel.dart' show MessageRecord, MessageType;
 
 /// 心跳通信测试页面
 class HeartbeatPage extends StatefulWidget {

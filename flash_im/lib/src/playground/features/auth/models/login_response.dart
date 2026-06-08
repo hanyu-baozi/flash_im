@@ -1,5 +1,3 @@
-import 'login_type.dart';
-
 class LoginResponse {
   final bool success;
   final String? loginType;

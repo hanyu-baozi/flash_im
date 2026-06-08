@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flash_im/src/playground/features/auth/services/auth_service.dart';
 import 'package:flash_im/src/playground/features/auth/models/login_type.dart';
 import 'package:flash_im/src/playground/features/auth/config/auth_config.dart';
-import 'package:flutter/material.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// AuthService 接口请求测试

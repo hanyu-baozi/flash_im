@@ -1,4 +1,3 @@
-mod auth;
 mod db;
 mod mock;
 mod state;
@@ -43,9 +42,10 @@ async fn main() {
     let app = Router::new()
         .route("/v", get(get_v))
         .route("/conversation", get(get_conversations))
-        .merge(auth::routes())
+        .merge(flash_auth::routes())
         .merge(ws::routes())
-        .layer(Extension(state))
+        .layer(Extension(state.auth.clone()))
+        .layer(Extension(state.clone()))
         .layer(cors);
 
     let ip = util::get_local_ip();

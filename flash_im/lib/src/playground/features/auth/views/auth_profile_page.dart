@@ -124,6 +124,9 @@ class _AuthProfilePageState extends State<AuthProfilePage> {
   }
 
   Widget _buildAvatar(UserProfile profile) {
+    final avatarUrl = profile.avatar.trim();
+    final hasAvatar = avatarUrl.isNotEmpty && avatarUrl.startsWith('http');
+
     return Container(
       width: 80,
       height: 80,
@@ -140,6 +143,37 @@ class _AuthProfilePageState extends State<AuthProfilePage> {
           ),
         ],
       ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: hasAvatar
+            ? Image.network(
+                avatarUrl,
+                fit: BoxFit.cover,
+                width: 80,
+                height: 80,
+                errorBuilder: (context, error, stackTrace) {
+                  return _buildFallbackAvatar(profile);
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  );
+                },
+              )
+            : _buildFallbackAvatar(profile),
+      ),
+    );
+  }
+
+  Widget _buildFallbackAvatar(UserProfile profile) {
+    return Container(
+      width: 80,
+      height: 80,
+      color: const Color(0xFF4F46E5),
       child: Center(
         child: Text(
           profile.nickname.isNotEmpty ? profile.nickname[0].toUpperCase() : '?',

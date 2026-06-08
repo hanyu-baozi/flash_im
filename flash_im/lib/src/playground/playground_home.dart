@@ -24,7 +24,19 @@ class PlaygroundHome extends StatelessWidget {
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AuthLoginPage()),
+                MaterialPageRoute(
+                  builder: (context) => AuthLoginPage(
+                    onLoginSuccess: () {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('登录成功！'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               );
             },
           ),
